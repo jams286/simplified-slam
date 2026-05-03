@@ -1,7 +1,7 @@
 """
-Mapa de grilla de ocupación (Occupancy Grid Map).
-Implementa el modelo de sensor inverso con log-odds para
-actualización eficiente del mapa.
+Occupancy Grid Map.
+Implements the inverse sensor model with log-odds for
+efficient map updating.
 """
 
 import numpy as np
@@ -11,17 +11,17 @@ from .lidar import LiDARScan
 
 class OccupancyGrid:
     """
-    Mapa de grilla de ocupación usando representación log-odds.
+    Occupancy grid map using log-odds representation.
     
-    Modelo probabilístico:
+    Probabilistic model:
         L(m|z) = L(m|z₁:ₜ₋₁) + L(m|zₜ) - L₀
         
-    Donde L = log(p/(1-p)) es la transformación log-odds.
+    Where L = log(p/(1-p)) is the log-odds transformation.
     
-    Ventajas del log-odds:
-    - Actualización aditiva (eficiente)
-    - Evita problemas numéricos con probabilidades cercanas a 0 o 1
-    - Saturación natural con límites
+    Advantages of log-odds:
+    - Additive update (efficient)
+    - Avoids numerical issues with probabilities near 0 or 1
+    - Natural saturation with limits
     """
 
     def __init__(self, width: float, height: float, resolution: float = 0.1,
@@ -37,27 +37,27 @@ class OccupancyGrid:
         self.log_odd_max = log_odd_max
         self.log_odd_min = log_odd_min
         
-        # Dimensiones de la grilla
+        # Grid dimensions
         self.cols = int(width / resolution)
         self.rows = int(height / resolution)
         
-        # Grilla en log-odds (inicializada con prior)
+        # Grid in log-odds (initialized with prior)
         self.grid = np.full((self.rows, self.cols), log_odd_prior, 
                            dtype=np.float32)
         
-        # Contador de actualizaciones por celda
+        # Update counter per cell
         self.update_count = np.zeros((self.rows, self.cols), dtype=np.int32)
 
     def update(self, scan: LiDARScan):
         """
-        Actualiza el mapa con un escaneo LiDAR usando el modelo
-        de sensor inverso (inverse sensor model).
+        Updates the map with a LiDAR scan using the
+        inverse sensor model.
         
-        Para cada rayo:
-        - Celdas atravesadas → incrementar log-odds libre
-        - Celda final (hit) → incrementar log-odds ocupado
+        For each ray:
+        - Traversed cells → increment free log-odds
+        - Final cell (hit) → increment occupied log-odds
         
-        Usa Bresenham para trazar los rayos eficientemente.
+        Uses Bresenham to trace rays efficiently.
         """
         rx, ry, _ = scan.robot_pose
         robot_col = int(rx / self.resolution)
@@ -70,10 +70,10 @@ class OccupancyGrid:
             end_col = int(ex / self.resolution)
             end_row = int(ey / self.resolution)
             
-            # Trazar rayo con Bresenham
+            # Trace ray with Bresenham
             cells = self._bresenham(robot_col, robot_row, end_col, end_row)
             
-            # Celdas libres (todas excepto la última)
+            # Free cells (all except the last)
             for col, row in cells[:-1]:
                 if 0 <= row < self.rows and 0 <= col < self.cols:
                     self.grid[row, col] += self.log_odd_free
@@ -81,7 +81,7 @@ class OccupancyGrid:
                                              self.log_odd_min)
                     self.update_count[row, col] += 1
             
-            # Celda ocupada (última celda, solo si el rayo impactó)
+            # Occupied cell (last cell, only if the ray hit)
             if scan.valid[i] and cells:
                 col, row = cells[-1]
                 if 0 <= row < self.rows and 0 <= col < self.cols:
@@ -92,12 +92,12 @@ class OccupancyGrid:
 
     def update_from_pose(self, scan: LiDARScan, estimated_pose: np.ndarray):
         """
-        Actualiza el mapa usando la pose estimada por SLAM en lugar
-        de la pose real del robot.
+        Updates the map using the SLAM-estimated pose instead
+        of the real robot pose.
         
         Args:
-            scan: escaneo LiDAR original
-            estimated_pose: [x, y, θ] estimado por EKF-SLAM
+            scan: original LiDAR scan
+            estimated_pose: [x, y, θ] estimated by EKF-SLAM
         """
         rx, ry, rtheta = estimated_pose
         robot_col = int(rx / self.resolution)
@@ -107,7 +107,7 @@ class OccupancyGrid:
             if not scan.valid[i]:
                 continue
                 
-            # Recalcular endpoint con pose estimada
+            # Recalculate endpoint with estimated pose
             angle = scan.angles[i] - scan.robot_pose[2] + rtheta
             ex = rx + scan.ranges[i] * np.cos(angle)
             ey = ry + scan.ranges[i] * np.sin(angle)
@@ -115,7 +115,7 @@ class OccupancyGrid:
             end_col = int(ex / self.resolution)
             end_row = int(ey / self.resolution)
             
-            # Trazar rayo
+            # Trace ray
             cells = self._bresenham(robot_col, robot_row, end_col, end_row)
             
             for col, row in cells[:-1]:
@@ -135,7 +135,7 @@ class OccupancyGrid:
 
     def get_probability_map(self) -> np.ndarray:
         """
-        Convierte log-odds a probabilidades de ocupación [0, 1].
+        Converts log-odds to occupancy probabilities [0, 1].
         
         p = 1 - 1/(1 + exp(L))
         """
@@ -143,25 +143,25 @@ class OccupancyGrid:
 
     def get_binary_map(self, threshold: float = 0.6) -> np.ndarray:
         """
-        Genera mapa binario: 1 = ocupado, 0 = libre.
+        Generates binary map: 1 = occupied, 0 = free.
         
         Args:
-            threshold: umbral de probabilidad para considerar ocupado
+            threshold: probability threshold to consider occupied
         """
         prob_map = self.get_probability_map()
         return (prob_map > threshold).astype(np.float32)
 
     def get_explored_mask(self) -> np.ndarray:
-        """Retorna máscara de celdas que han sido observadas al menos una vez."""
+        """Returns mask of cells that have been observed at least once."""
         return self.update_count > 0
 
     @staticmethod
     def _bresenham(x0: int, y0: int, x1: int, y1: int) -> list:
         """
-        Algoritmo de Bresenham para trazar una línea en la grilla.
+        Bresenham's algorithm to trace a line on the grid.
         
         Returns:
-            Lista de tuplas (col, row) de celdas atravesadas.
+            List of (col, row) tuples of traversed cells.
         """
         cells = []
         dx = abs(x1 - x0)
@@ -186,13 +186,13 @@ class OccupancyGrid:
         return cells
 
     def world_to_grid(self, x: float, y: float) -> Tuple[int, int]:
-        """Convierte coordenadas del mundo a índices de grilla."""
+        """Converts world coordinates to grid indices."""
         col = int(x / self.resolution)
         row = int(y / self.resolution)
         return col, row
 
     def grid_to_world(self, col: int, row: int) -> Tuple[float, float]:
-        """Convierte índices de grilla a coordenadas del mundo."""
+        """Converts grid indices to world coordinates."""
         x = (col + 0.5) * self.resolution
         y = (row + 0.5) * self.resolution
         return x, y

@@ -1,7 +1,7 @@
 """
-Punto de entrada principal del sistema SLAM simplificado.
-Orquesta todos los módulos: entorno, robot, LiDAR, EKF-SLAM,
-mapa de ocupación, visualización y análisis de error.
+Main entry point for the simplified SLAM system.
+Orchestrates all modules: environment, robot, LiDAR, EKF-SLAM,
+occupancy grid, visualization, and error analysis.
 """
 
 import numpy as np
@@ -30,43 +30,43 @@ def run_slam(num_steps: int = SIM_STEPS, seed: int = SIM_SEED,
              visualize: bool = True, animate: bool = True,
              save_animation: str = None):
     """
-    Ejecuta la simulación SLAM completa.
+    Runs the complete SLAM simulation.
     
     Args:
-        num_steps: número de pasos de simulación
-        seed: semilla para reproducibilidad
-        visualize: si se muestra visualización final
-        animate: si se genera animación en tiempo real
-        save_animation: ruta para guardar la animación (GIF)
+        num_steps: number of simulation steps
+        seed: seed for reproducibility
+        visualize: whether to show final visualization
+        animate: whether to generate real-time animation
+        save_animation: path to save animation (GIF)
     """
     np.random.seed(seed)
-    print("🤖 SLAM Simplificado - EKF-SLAM con LiDAR 2D")
+    print("🤖 Simplified SLAM - EKF-SLAM with 2D LiDAR")
     print("=" * 50)
     
-    # === 1. Crear entorno ===
-    print("\n📦 Creando entorno 2D...")
+    # === 1. Create environment ===
+    print("\n📦 Creating 2D environment...")
     env = create_default_environment()
-    print(f"   Dimensiones: {env.width}x{env.height} m")
-    print(f"   Paredes: {len(env.walls)}")
+    print(f"   Dimensions: {env.width}x{env.height} m")
+    print(f"   Walls: {len(env.walls)}")
     print(f"   Landmarks: {len(env.landmarks)}")
     
-    # === 2. Inicializar robot ===
+    # === 2. Initialize robot ===
     initial_pose = np.array([2.0, 2.0, 0.0])
     robot = Robot(
         x=initial_pose[0], y=initial_pose[1], theta=initial_pose[2],
         noise_v=MOTION_NOISE_V, noise_w=MOTION_NOISE_W
     )
-    print(f"\n🤖 Robot inicializado en ({robot.x:.1f}, {robot.y:.1f}, {np.degrees(robot.theta):.0f}°)")
+    print(f"\n🤖 Robot initialized at ({robot.x:.1f}, {robot.y:.1f}, {np.degrees(robot.theta):.0f}°)")
     
-    # === 3. Inicializar LiDAR ===
+    # === 3. Initialize LiDAR ===
     lidar = LiDAR(
         num_beams=LIDAR_NUM_BEAMS, max_range=LIDAR_MAX_RANGE,
         min_range=LIDAR_MIN_RANGE, fov=LIDAR_FOV,
         noise_std=LIDAR_NOISE_STD, miss_probability=LIDAR_MISS_PROB
     )
-    print(f"📡 LiDAR: {LIDAR_NUM_BEAMS} rayos, rango máx {LIDAR_MAX_RANGE}m, ruido σ={LIDAR_NOISE_STD}m")
+    print(f"📡 LiDAR: {LIDAR_NUM_BEAMS} beams, max range {LIDAR_MAX_RANGE}m, noise σ={LIDAR_NOISE_STD}m")
     
-    # === 4. Inicializar EKF-SLAM ===
+    # === 4. Initialize EKF-SLAM ===
     ekf = EKFSLAM(
         initial_pose=initial_pose,
         range_noise=EKF_RANGE_NOISE,
@@ -75,54 +75,54 @@ def run_slam(num_steps: int = SIM_STEPS, seed: int = SIM_SEED,
     )
     print(f"🧮 EKF-SLAM: R_noise={EKF_RANGE_NOISE}, B_noise={EKF_BEARING_NOISE}")
     
-    # === 5. Inicializar mapa de ocupación ===
+    # === 5. Initialize occupancy grid ===
     occ_grid = OccupancyGrid(
         width=ENV_WIDTH, height=ENV_HEIGHT, resolution=GRID_RESOLUTION,
         log_odd_free=GRID_LOG_ODD_FREE, log_odd_occ=GRID_LOG_ODD_OCC,
         log_odd_prior=GRID_LOG_ODD_PRIOR, log_odd_max=GRID_LOG_ODD_MAX,
         log_odd_min=GRID_LOG_ODD_MIN
     )
-    print(f"🗺️  Grilla de ocupación: {occ_grid.rows}x{occ_grid.cols} celdas ({GRID_RESOLUTION}m/celda)")
+    print(f"🗺️  Occupancy grid: {occ_grid.rows}x{occ_grid.cols} cells ({GRID_RESOLUTION}m/cell)")
     
-    # === 6. Inicializar visualizador ===
+    # === 6. Initialize visualizer ===
     vis = SLAMVisualizer(env, occ_grid, figsize=VIS_FIGSIZE)
     
-    # === 7. Generar comandos de exploración ===
+    # === 7. Generate exploration commands ===
     commands = generate_exploration_commands(num_steps, DT, ENV_WIDTH, ENV_HEIGHT)
-    print(f"\n🎯 Iniciando exploración: {num_steps} pasos ({num_steps*DT:.1f}s)")
+    print(f"\n🎯 Starting exploration: {num_steps} steps ({num_steps*DT:.1f}s)")
     print("-" * 50)
     
-    # === 8. Bucle principal de simulación ===
+    # === 8. Main simulation loop ===
     landmarks_true = np.array([[lm.x, lm.y] for lm in env.landmarks])
-    frame_skip = max(1, num_steps // 100)  # Limitar frames para rendimiento
+    frame_skip = max(1, num_steps // 100)  # Limit frames for performance
     
     for step in range(num_steps):
         v, omega = commands[step]
         
-        # Mover robot (con ruido)
+        # Move robot (with noise)
         robot.move(v, omega, DT, add_noise=True)
         
-        # Verificar colisión — si no es libre, revertir
+        # Check collision — if not free, revert
         if not env.is_free(robot.x, robot.y, radius=0.3):
             robot.x = robot.true_path[-2][0] if len(robot.true_path) > 1 else robot.x
             robot.y = robot.true_path[-2][1] if len(robot.true_path) > 1 else robot.y
             robot.true_path[-1] = (robot.x, robot.y, robot.theta)
             continue
         
-        # Escaneo LiDAR
+        # LiDAR scan
         scan = lidar.scan(env, robot.x, robot.y, robot.theta)
         
-        # Extraer landmarks del escaneo
+        # Extract landmarks from scan
         landmark_obs = lidar.extract_landmarks(scan)
         
-        # Paso EKF-SLAM
+        # EKF-SLAM step
         ekf.step(v, omega, DT, landmark_obs)
         
-        # Actualizar mapa de ocupación con pose estimada
+        # Update occupancy grid with estimated pose
         estimated_pose = ekf.robot_pose
         occ_grid.update_from_pose(scan, estimated_pose)
         
-        # Registrar frame para animación (cada N pasos)
+        # Record frame for animation (every N steps)
         if step % frame_skip == 0:
             vis.record_frame(
                 true_pose=robot.pose,
@@ -135,19 +135,19 @@ def run_slam(num_steps: int = SIM_STEPS, seed: int = SIM_SEED,
                 pose_covariance=ekf.get_pose_covariance()
             )
         
-        # Progreso
+        # Progress
         if (step + 1) % (num_steps // 10) == 0:
             ate = np.linalg.norm(robot.pose[:2] - estimated_pose[:2])
-            print(f"   Paso {step+1:4d}/{num_steps} | "
+            print(f"   Step {step+1:4d}/{num_steps} | "
                   f"Landmarks: {ekf.num_landmarks:3d} | "
                   f"ATE: {ate:.4f}m | "
-                  f"Cobertura: {np.mean(occ_grid.get_explored_mask()):.1%}")
+                  f"Coverage: {np.mean(occ_grid.get_explored_mask()):.1%}")
     
     print("-" * 50)
-    print("✅ Simulación completada")
+    print("✅ Simulation completed")
     
-    # === 9. Análisis de error ===
-    print("\n📊 Calculando métricas de error...")
+    # === 9. Error analysis ===
+    print("\n📊 Computing error metrics...")
     
     gt_map = env.get_ground_truth_map(GRID_RESOLUTION)
     estimated_binary = occ_grid.get_binary_map(threshold=0.6)
@@ -167,18 +167,18 @@ def run_slam(num_steps: int = SIM_STEPS, seed: int = SIM_SEED,
     )
     coverage = ErrorAnalysis.exploration_coverage(explored_mask)
     
-    # Imprimir reporte
+    # Print report
     report = ErrorAnalysis.generate_report(
         traj_error, orient_error, map_metrics, lm_error, coverage
     )
     print(report)
     
-    # === 10. Visualización ===
+    # === 10. Visualization ===
     if save_animation:
         os.makedirs(os.path.dirname(save_animation), exist_ok=True)
 
     if visualize:
-        print("\n🎨 Generando visualización final...")
+        print("\n🎨 Generating final visualization...")
         save_comparison = None
         if save_animation:
             results_dir = os.path.dirname(save_animation) or 'results'
@@ -190,7 +190,7 @@ def run_slam(num_steps: int = SIM_STEPS, seed: int = SIM_SEED,
         )
     
     if animate:
-        print("🎬 Generando animación...")
+        print("🎬 Generating animation...")
         vis.animate(interval=100, save_path=save_animation)
     
     return {
@@ -204,18 +204,18 @@ def run_slam(num_steps: int = SIM_STEPS, seed: int = SIM_SEED,
 
 def main():
     parser = argparse.ArgumentParser(
-        description='SLAM Simplificado - EKF-SLAM con LiDAR 2D simulado'
+        description='Simplified SLAM - EKF-SLAM with simulated 2D LiDAR'
     )
     parser.add_argument('--steps', type=int, default=SIM_STEPS,
-                       help='Número de pasos de simulación')
+                       help='Number of simulation steps')
     parser.add_argument('--seed', type=int, default=SIM_SEED,
-                       help='Semilla aleatoria')
+                       help='Random seed')
     parser.add_argument('--no-animate', action='store_true',
-                       help='Desactivar animación en tiempo real')
+                       help='Disable real-time animation')
     parser.add_argument('--no-visualize', action='store_true',
-                       help='Desactivar toda visualización')
+                       help='Disable all visualization')
     parser.add_argument('--save-gif', type=str, default=None,
-                       help='Guardar animación como GIF')
+                       help='Save animation as GIF')
     
     args = parser.parse_args()
     

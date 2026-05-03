@@ -1,6 +1,6 @@
 """
-Simulador de entorno 2D con paredes y obstáculos.
-Define el mundo donde el robot navega y los elementos que el LiDAR detectará.
+2D environment simulator with walls and obstacles.
+Defines the world where the robot navigates and the elements detected by the LiDAR.
 """
 
 import numpy as np
@@ -10,7 +10,7 @@ from typing import List, Tuple
 
 @dataclass
 class Segment:
-    """Segmento de línea que representa una pared u obstáculo."""
+    """Line segment representing a wall or obstacle."""
     x1: float
     y1: float
     x2: float
@@ -19,7 +19,7 @@ class Segment:
 
 @dataclass
 class Landmark:
-    """Punto de referencia en el entorno (esquinas, puntos notables)."""
+    """Reference point in the environment (corners, notable points)."""
     x: float
     y: float
     landmark_id: int
@@ -27,10 +27,10 @@ class Landmark:
 
 class Environment:
     """
-    Entorno 2D rectangular con paredes perimetrales y obstáculos internos.
+    2D rectangular environment with perimeter walls and internal obstacles.
     
-    El entorno se compone de segmentos de línea que representan superficies
-    reflectantes para el sensor LiDAR.
+    The environment is composed of line segments that represent
+    reflective surfaces for the LiDAR sensor.
     """
 
     def __init__(self, width: float = 20.0, height: float = 20.0):
@@ -41,22 +41,22 @@ class Environment:
         self._build_boundary()
 
     def _build_boundary(self):
-        """Construye las paredes perimetrales del entorno."""
+        """Builds the perimeter walls of the environment."""
         w, h = self.width, self.height
         self.walls.extend([
-            Segment(0, 0, w, 0),     # pared inferior
-            Segment(w, 0, w, h),     # pared derecha
-            Segment(w, h, 0, h),     # pared superior
-            Segment(0, h, 0, 0),     # pared izquierda
+            Segment(0, 0, w, 0),     # bottom wall
+            Segment(w, 0, w, h),     # right wall
+            Segment(w, h, 0, h),     # top wall
+            Segment(0, h, 0, 0),     # left wall
         ])
 
     def add_rectangle(self, cx: float, cy: float, rw: float, rh: float):
         """
-        Agrega un obstáculo rectangular.
+        Adds a rectangular obstacle.
         
         Args:
-            cx, cy: centro del rectángulo
-            rw, rh: ancho y alto del rectángulo
+            cx, cy: rectangle center
+            rw, rh: rectangle width and height
         """
         x1, y1 = cx - rw / 2, cy - rh / 2
         x2, y2 = cx + rw / 2, cy + rh / 2
@@ -66,16 +66,16 @@ class Environment:
             Segment(x2, y2, x1, y2),
             Segment(x1, y2, x1, y1),
         ])
-        # Agregar esquinas como landmarks
+        # Add corners as landmarks
         corners = [(x1, y1), (x2, y1), (x2, y2), (x1, y2)]
         for x, y in corners:
             lid = len(self.landmarks)
             self.landmarks.append(Landmark(x, y, lid))
 
     def add_segment(self, x1: float, y1: float, x2: float, y2: float):
-        """Agrega un segmento de pared individual."""
+        """Adds an individual wall segment."""
         self.walls.append(Segment(x1, y1, x2, y2))
-        # Endpoints como landmarks
+        # Endpoints as landmarks
         for x, y in [(x1, y1), (x2, y2)]:
             lid = len(self.landmarks)
             self.landmarks.append(Landmark(x, y, lid))
@@ -83,10 +83,10 @@ class Environment:
     def ray_cast(self, ox: float, oy: float, angle: float, 
                  max_range: float) -> float:
         """
-        Lanza un rayo desde (ox, oy) en dirección 'angle' y retorna
-        la distancia al primer obstáculo, o max_range si no hay intersección.
+        Casts a ray from (ox, oy) in direction 'angle' and returns
+        the distance to the first obstacle, or max_range if no intersection.
         
-        Usa intersección rayo-segmento parametrizada.
+        Uses parameterized ray-segment intersection.
         """
         dx = np.cos(angle)
         dy = np.sin(angle)
@@ -106,17 +106,17 @@ class Environment:
     def _ray_segment_intersection(ox: float, oy: float, dx: float, dy: float,
                                    x1: float, y1: float, x2: float, y2: float):
         """
-        Calcula la intersección entre un rayo y un segmento usando
-        el método parametrizado (Cramer).
+        Computes the intersection between a ray and a segment using
+        the parameterized method (Cramer).
         
-        Retorna la distancia t si hay intersección válida, None en otro caso.
+        Returns the distance t if there is a valid intersection, None otherwise.
         """
         sx = x2 - x1
         sy = y2 - y1
 
         denom = dx * sy - dy * sx
         if abs(denom) < 1e-10:
-            return None  # Rayo paralelo al segmento
+            return None  # Ray parallel to segment
 
         t = ((x1 - ox) * sy - (y1 - oy) * sx) / denom
         u = ((x1 - ox) * dy - (y1 - oy) * dx) / denom
@@ -126,13 +126,13 @@ class Environment:
         return None
 
     def is_free(self, x: float, y: float, radius: float = 0.0) -> bool:
-        """Verifica si una posición es válida (sin colisión)."""
+        """Checks if a position is valid (no collision)."""
         if x - radius < 0 or x + radius > self.width:
             return False
         if y - radius < 0 or y + radius > self.height:
             return False
-        # Verificar distancia a cada segmento
-        for wall in self.walls[4:]:  # Saltar paredes perimetrales
+        # Check distance to each segment
+        for wall in self.walls[4:]:  # Skip perimeter walls
             dist = self._point_segment_distance(
                 x, y, wall.x1, wall.y1, wall.x2, wall.y2
             )
@@ -144,7 +144,7 @@ class Environment:
     def _point_segment_distance(px: float, py: float,
                                  x1: float, y1: float,
                                  x2: float, y2: float) -> float:
-        """Distancia mínima de un punto a un segmento."""
+        """Minimum distance from a point to a segment."""
         dx, dy = x2 - x1, y2 - y1
         length_sq = dx * dx + dy * dy
         if length_sq < 1e-10:
@@ -156,17 +156,17 @@ class Environment:
 
     def get_ground_truth_map(self, resolution: float = 0.1) -> np.ndarray:
         """
-        Genera un mapa de verdad (ground truth) como grilla binaria.
+        Generates a ground truth map as a binary grid.
         
         Returns:
-            Matriz donde 1 = ocupado, 0 = libre
+            Matrix where 1 = occupied, 0 = free
         """
         rows = int(self.height / resolution)
         cols = int(self.width / resolution)
         grid = np.zeros((rows, cols), dtype=np.float32)
 
         for wall in self.walls:
-            # Rasterizar cada segmento en la grilla
+            # Rasterize each segment into the grid
             n_samples = int(np.hypot(wall.x2 - wall.x1, wall.y2 - wall.y1) / resolution * 2) + 1
             for i in range(n_samples):
                 t = i / max(n_samples - 1, 1)
@@ -181,19 +181,19 @@ class Environment:
 
 
 def create_default_environment() -> Environment:
-    """Crea un entorno predefinido con obstáculos variados para demostración."""
+    """Creates a predefined environment with varied obstacles for demonstration."""
     env = Environment(20.0, 20.0)
 
-    # Habitaciones y pasillos
-    env.add_rectangle(5.0, 5.0, 3.0, 3.0)    # obstáculo inferior izquierdo
-    env.add_rectangle(15.0, 5.0, 2.0, 4.0)   # obstáculo inferior derecho
-    env.add_rectangle(5.0, 15.0, 2.5, 2.5)   # obstáculo superior izquierdo
-    env.add_rectangle(15.0, 15.0, 3.0, 2.0)  # obstáculo superior derecho
-    env.add_rectangle(10.0, 10.0, 2.0, 2.0)  # obstáculo central
+    # Rooms and corridors
+    env.add_rectangle(5.0, 5.0, 3.0, 3.0)    # bottom-left obstacle
+    env.add_rectangle(15.0, 5.0, 2.0, 4.0)   # bottom-right obstacle
+    env.add_rectangle(5.0, 15.0, 2.5, 2.5)   # top-left obstacle
+    env.add_rectangle(15.0, 15.0, 3.0, 2.0)  # top-right obstacle
+    env.add_rectangle(10.0, 10.0, 2.0, 2.0)  # central obstacle
 
-    # Paredes internas (pasillos)
-    env.add_segment(8.0, 0.0, 8.0, 4.0)      # pared vertical inferior
-    env.add_segment(12.0, 7.0, 12.0, 13.0)   # pared vertical central
-    env.add_segment(0.0, 12.0, 4.0, 12.0)    # pared horizontal izquierda
+    # Internal walls (corridors)
+    env.add_segment(8.0, 0.0, 8.0, 4.0)      # bottom vertical wall
+    env.add_segment(12.0, 7.0, 12.0, 13.0)   # central vertical wall
+    env.add_segment(0.0, 12.0, 4.0, 12.0)    # left horizontal wall
 
     return env

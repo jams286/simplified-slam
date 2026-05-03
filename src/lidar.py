@@ -1,6 +1,6 @@
 """
-Simulador de sensor LiDAR 2D con ruido gaussiano realista.
-Genera escaneos simulados mediante ray-casting en el entorno.
+2D LiDAR sensor simulator with realistic Gaussian noise.
+Generates simulated scans via ray-casting in the environment.
 """
 
 import numpy as np
@@ -10,13 +10,13 @@ from .environment import Environment
 
 class LiDAR:
     """
-    Sensor LiDAR 2D simulado con modelo de ruido realista.
+    Simulated 2D LiDAR sensor with realistic noise model.
     
-    Características del modelo:
-    - Ruido gaussiano en mediciones de distancia
-    - Probabilidad de lecturas perdidas (max_range)
-    - Resolución angular configurable
-    - Campo de visión ajustable
+    Model characteristics:
+    - Gaussian noise on distance measurements
+    - Probability of missed readings (max_range)
+    - Configurable angular resolution
+    - Adjustable field of view
     """
 
     def __init__(self, num_beams: int = 180, max_range: float = 8.0,
@@ -29,21 +29,21 @@ class LiDAR:
         self.noise_std = noise_std
         self.miss_probability = miss_probability
         
-        # Ángulos de los rayos relativos a la orientación del robot
+        # Angles of beams relative to robot orientation
         self.angles = np.linspace(-fov / 2, fov / 2, num_beams, endpoint=False)
 
     def scan(self, environment: Environment, robot_x: float, 
              robot_y: float, robot_theta: float) -> 'LiDARScan':
         """
-        Realiza un escaneo completo del entorno desde la pose del robot.
+        Performs a complete scan of the environment from the robot's pose.
         
         Args:
-            environment: entorno con obstáculos
-            robot_x, robot_y: posición del robot
-            robot_theta: orientación del robot
+            environment: environment with obstacles
+            robot_x, robot_y: robot position
+            robot_theta: robot orientation
             
         Returns:
-            Objeto LiDARScan con las mediciones
+            LiDARScan object with the measurements
         """
         ranges = np.zeros(self.num_beams)
         valid = np.ones(self.num_beams, dtype=bool)
@@ -51,23 +51,23 @@ class LiDAR:
         for i, local_angle in enumerate(self.angles):
             global_angle = robot_theta + local_angle
             
-            # Ray-casting sin ruido
+            # Noise-free ray-casting
             true_range = environment.ray_cast(
                 robot_x, robot_y, global_angle, self.max_range
             )
             
-            # Modelo de ruido gaussiano
+            # Gaussian noise model
             noisy_range = true_range + np.random.normal(0, self.noise_std)
             
-            # Simular lecturas perdidas
+            # Simulate missed readings
             if np.random.random() < self.miss_probability:
                 noisy_range = self.max_range
                 valid[i] = False
             
-            # Saturar al rango válido
+            # Clamp to valid range
             noisy_range = np.clip(noisy_range, self.min_range, self.max_range)
             
-            # Marcar como inválido si está en el límite
+            # Mark as invalid if at the limit
             if noisy_range >= self.max_range - 0.01:
                 valid[i] = False
             
@@ -85,29 +85,29 @@ class LiDAR:
                           min_cluster_size: int = 3,
                           max_cluster_gap: float = 0.3) -> List[Tuple[float, float]]:
         """
-        Extrae landmarks (puntos notables) del escaneo usando
-        detección de discontinuidades y clustering.
+        Extracts landmarks (notable points) from the scan using
+        discontinuity detection and clustering.
         
-        Detecta esquinas/puntos donde hay saltos bruscos de distancia.
+        Detects corners/points where there are abrupt distance jumps.
         
         Returns:
-            Lista de (rango, ángulo) de landmarks detectados
+            List of (range, angle) of detected landmarks
         """
         landmarks = []
         ranges = scan.ranges
         valid = scan.valid
         
-        # Detectar discontinuidades (posibles esquinas)
+        # Detect discontinuities (possible corners)
         for i in range(1, len(ranges) - 1):
             if not valid[i]:
                 continue
             
-            # Diferencia con vecinos
+            # Difference with neighbors
             if valid[i-1] and valid[i+1]:
                 diff_left = abs(ranges[i] - ranges[i-1])
                 diff_right = abs(ranges[i] - ranges[i+1])
                 
-                # Punto de discontinuidad
+                # Discontinuity point
                 if diff_left > max_cluster_gap or diff_right > max_cluster_gap:
                     landmarks.append((ranges[i], scan.angles[i]))
         
@@ -115,10 +115,10 @@ class LiDAR:
 
     def scan_to_points(self, scan: 'LiDARScan') -> np.ndarray:
         """
-        Convierte un escaneo a puntos cartesianos en el frame global.
+        Converts a scan to Cartesian points in the global frame.
         
         Returns:
-            Array (N, 2) con coordenadas [x, y] de puntos válidos
+            Array (N, 2) with [x, y] coordinates of valid points
         """
         valid_ranges = scan.ranges[scan.valid]
         valid_angles = scan.angles[scan.valid]
@@ -132,7 +132,7 @@ class LiDAR:
 
 
 class LiDARScan:
-    """Resultado de un escaneo LiDAR."""
+    """Result of a LiDAR scan."""
     
     def __init__(self, ranges: np.ndarray, angles: np.ndarray,
                  valid: np.ndarray, robot_pose: Tuple[float, float, float],
@@ -145,15 +145,15 @@ class LiDARScan:
 
     @property
     def num_valid(self) -> int:
-        """Número de mediciones válidas."""
+        """Number of valid measurements."""
         return int(np.sum(self.valid))
 
     def get_endpoints(self) -> np.ndarray:
         """
-        Calcula los puntos finales de los rayos en coordenadas globales.
+        Computes the ray endpoints in global coordinates.
         
         Returns:
-            Array (N, 2) con coordenadas [x, y] de todos los endpoints
+            Array (N, 2) with [x, y] coordinates of all endpoints
         """
         rx, ry, _ = self.robot_pose
         x = rx + self.ranges * np.cos(self.angles)
@@ -161,6 +161,6 @@ class LiDARScan:
         return np.column_stack([x, y])
 
     def get_valid_endpoints(self) -> np.ndarray:
-        """Retorna solo los endpoints de mediciones válidas."""
+        """Returns only the endpoints of valid measurements."""
         endpoints = self.get_endpoints()
         return endpoints[self.valid]

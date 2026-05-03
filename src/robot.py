@@ -1,6 +1,6 @@
 """
-Modelo cinemático del robot diferencial.
-Maneja el estado (x, y, θ) y el modelo de movimiento con ruido.
+Differential drive robot kinematic model.
+Manages the state (x, y, θ) and the motion model with noise.
 """
 
 import numpy as np
@@ -9,10 +9,10 @@ from typing import Tuple
 
 class Robot:
     """
-    Robot diferencial 2D con modelo de movimiento velocity-based.
+    2D differential drive robot with velocity-based motion model.
     
-    Estado: [x, y, θ] donde θ es la orientación en radianes.
-    Control: [v, ω] velocidad lineal y angular.
+    State: [x, y, θ] where θ is the orientation in radians.
+    Control: [v, ω] linear and angular velocity.
     """
 
     def __init__(self, x: float = 10.0, y: float = 10.0, theta: float = 0.0,
@@ -22,32 +22,32 @@ class Robot:
         self.theta = theta
         self.noise_v = noise_v
         self.noise_w = noise_w
-        # Historial de poses reales (ground truth)
+        # History of real poses (ground truth)
         self.true_path: list = [(x, y, theta)]
 
     @property
     def pose(self) -> np.ndarray:
-        """Retorna el estado actual como vector [x, y, θ]."""
+        """Returns the current state as vector [x, y, θ]."""
         return np.array([self.x, self.y, self.theta])
 
     def move(self, v: float, omega: float, dt: float,
              add_noise: bool = True) -> np.ndarray:
         """
-        Ejecuta un paso de movimiento usando el modelo velocity motion.
+        Executes a motion step using the velocity motion model.
         
-        Modelo cinemático:
+        Kinematic model:
             x' = x + v·cos(θ)·dt
             y' = y + v·sin(θ)·dt
             θ' = θ + ω·dt
         
         Args:
-            v: velocidad lineal (m/s)
-            omega: velocidad angular (rad/s)
-            dt: paso de tiempo (s)
-            add_noise: si se agrega ruido de proceso
+            v: linear velocity (m/s)
+            omega: angular velocity (rad/s)
+            dt: time step (s)
+            add_noise: whether to add process noise
             
         Returns:
-            Nuevo estado [x, y, θ]
+            New state [x, y, θ]
         """
         if add_noise:
             v_noisy = v + np.random.normal(0, self.noise_v)
@@ -68,15 +68,15 @@ class Robot:
     def motion_model(state: np.ndarray, v: float, omega: float, 
                      dt: float) -> np.ndarray:
         """
-        Modelo de movimiento sin ruido (para predicción en EKF).
+        Noise-free motion model (for EKF prediction).
         
         Args:
             state: [x, y, θ]
-            v, omega: controles
-            dt: paso de tiempo
+            v, omega: controls
+            dt: time step
             
         Returns:
-            Estado predicho [x', y', θ']
+            Predicted state [x', y', θ']
         """
         x, y, theta = state
         x_new = x + v * np.cos(theta) * dt
@@ -89,7 +89,7 @@ class Robot:
     def motion_jacobian(state: np.ndarray, v: float, omega: float,
                         dt: float) -> np.ndarray:
         """
-        Jacobiano del modelo de movimiento respecto al estado.
+        Jacobian of the motion model with respect to the state.
         
         F = ∂f/∂x = [[1, 0, -v·sin(θ)·dt],
                       [0, 1,  v·cos(θ)·dt],
@@ -105,21 +105,21 @@ class Robot:
     def motion_noise_covariance(v: float, omega: float, dt: float,
                                  alpha: np.ndarray = None) -> np.ndarray:
         """
-        Covarianza del ruido de proceso Q.
+        Process noise covariance Q.
         
-        Modelo simplificado proporcional a los controles.
+        Simplified model proportional to controls.
         """
         if alpha is None:
             alpha = np.array([0.1, 0.01, 0.01, 0.1])
         
-        # Ruido en espacio de control
+        # Noise in control space
         M = np.diag([
             alpha[0] * v**2 + alpha[1] * omega**2,
             alpha[2] * v**2 + alpha[3] * omega**2
         ])
         
-        # Jacobiano de la transformación control -> estado
-        theta = 0  # Aproximación
+        # Jacobian of control-to-state transformation
+        theta = 0  # Approximation
         V = np.array([
             [np.cos(theta) * dt, 0],
             [np.sin(theta) * dt, 0],
@@ -131,7 +131,7 @@ class Robot:
 
     @staticmethod
     def _normalize_angle(angle: float) -> float:
-        """Normaliza ángulo al rango [-π, π]."""
+        """Normalizes angle to the range [-π, π]."""
         while angle > np.pi:
             angle -= 2 * np.pi
         while angle < -np.pi:
@@ -143,24 +143,24 @@ def generate_exploration_commands(num_steps: int, dt: float,
                                    env_width: float = 20.0,
                                    env_height: float = 20.0) -> list:
     """
-    Genera una secuencia de comandos de movimiento para explorar el entorno.
-    Usa un patrón de exploración tipo 'lawn mower' con variaciones.
+    Generates a sequence of motion commands to explore the environment.
+    Uses a 'lawn mower' exploration pattern with variations.
     
     Returns:
-        Lista de tuplas (v, omega) para cada paso.
+        List of (v, omega) tuples for each step.
     """
     commands = []
-    phase_length = int(3.0 / dt)  # 3 segundos por fase
-    turn_length = int(1.5 / dt)   # 1.5 segundos para girar
+    phase_length = int(3.0 / dt)  # 3 seconds per phase
+    turn_length = int(1.5 / dt)   # 1.5 seconds to turn
     
-    v_cruise = 0.8  # velocidad crucero
-    omega_turn = np.pi / 3  # velocidad de giro
+    v_cruise = 0.8  # cruise speed
+    omega_turn = np.pi / 3  # turn speed
     
     step = 0
-    direction = 1  # 1 = derecha, -1 = izquierda
+    direction = 1  # 1 = right, -1 = left
     
     while step < num_steps:
-        # Avanzar recto
+        # Go straight
         for _ in range(min(phase_length, num_steps - step)):
             commands.append((v_cruise, 0.0))
             step += 1
@@ -168,7 +168,7 @@ def generate_exploration_commands(num_steps: int, dt: float,
         if step >= num_steps:
             break
             
-        # Girar 90°
+        # Turn 90°
         for _ in range(min(turn_length, num_steps - step)):
             commands.append((0.2, direction * omega_turn))
             step += 1
@@ -176,7 +176,7 @@ def generate_exploration_commands(num_steps: int, dt: float,
         if step >= num_steps:
             break
             
-        # Avanzar un poco
+        # Advance a little
         short_phase = int(1.5 / dt)
         for _ in range(min(short_phase, num_steps - step)):
             commands.append((v_cruise, 0.0))
@@ -185,11 +185,11 @@ def generate_exploration_commands(num_steps: int, dt: float,
         if step >= num_steps:
             break
             
-        # Girar 90° mismo sentido
+        # Turn 90° same direction
         for _ in range(min(turn_length, num_steps - step)):
             commands.append((0.2, direction * omega_turn))
             step += 1
         
-        direction *= -1  # Alternar dirección
+        direction *= -1  # Alternate direction
 
     return commands[:num_steps]

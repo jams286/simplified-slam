@@ -1,4 +1,4 @@
-"""Tests para el módulo de análisis de error."""
+"""Tests for the error analysis module."""
 
 import numpy as np
 import sys
@@ -9,17 +9,17 @@ from src.error_analysis import ErrorAnalysis
 
 
 class TestErrorAnalysis:
-    """Tests para la clase ErrorAnalysis."""
+    """Tests for the ErrorAnalysis class."""
 
     def test_ate_zero_error(self):
-        """ATE debe ser 0 con trayectorias idénticas."""
+        """ATE should be 0 with identical trajectories."""
         path = [(i, i, 0.0) for i in range(10)]
         result = ErrorAnalysis.absolute_trajectory_error(path, path)
         assert result['rmse'] < 1e-10
         assert result['mean'] < 1e-10
 
     def test_ate_known_error(self):
-        """ATE con error constante conocido."""
+        """ATE with known constant error."""
         true_path = [(i, 0, 0) for i in range(10)]
         est_path = [(i, 1.0, 0) for i in range(10)]  # offset de 1m en y
         result = ErrorAnalysis.absolute_trajectory_error(true_path, est_path)
@@ -27,7 +27,7 @@ class TestErrorAnalysis:
         assert abs(result['mean'] - 1.0) < 0.01
 
     def test_ate_increasing_error(self):
-        """ATE con error creciente."""
+        """ATE with increasing error."""
         true_path = [(i, 0, 0) for i in range(10)]
         est_path = [(i, i*0.1, 0) for i in range(10)]
         result = ErrorAnalysis.absolute_trajectory_error(true_path, est_path)
@@ -35,35 +35,35 @@ class TestErrorAnalysis:
         assert result['rmse'] > 0
 
     def test_orientation_error_zero(self):
-        """Error de orientación cero con trayectorias idénticas."""
+        """Zero orientation error with identical trajectories."""
         path = [(0, 0, i*0.1) for i in range(10)]
         result = ErrorAnalysis.orientation_error(path, path)
         assert result['rmse'] < 1e-10
 
     def test_orientation_error_constant(self):
-        """Error de orientación constante."""
+        """Constant orientation error."""
         true_path = [(0, 0, i*0.1) for i in range(10)]
         est_path = [(0, 0, i*0.1 + 0.1) for i in range(10)]
         result = ErrorAnalysis.orientation_error(true_path, est_path)
         assert abs(result['mean'] - 0.1) < 0.01
 
     def test_map_accuracy_perfect(self):
-        """Accuracy perfecta con mapas idénticos."""
+        """Perfect accuracy with identical maps."""
         gt = np.zeros((10, 10))
-        gt[5, :] = 1.0  # Una fila ocupada
+        gt[5, :] = 1.0  # One occupied row
         result = ErrorAnalysis.map_accuracy(gt, gt)
         assert result['accuracy'] == 1.0
         assert result['f1_score'] == 1.0
 
     def test_map_accuracy_empty(self):
-        """Mapas completamente vacíos."""
+        """Completely empty maps."""
         gt = np.zeros((10, 10))
         est = np.zeros((10, 10))
         result = ErrorAnalysis.map_accuracy(gt, est)
         assert result['accuracy'] == 1.0
 
     def test_map_accuracy_all_wrong(self):
-        """Accuracy mínima con mapas invertidos."""
+        """Minimum accuracy with inverted maps."""
         gt = np.zeros((10, 10))
         gt[5, :] = 1.0
         est = 1.0 - gt
@@ -71,7 +71,7 @@ class TestErrorAnalysis:
         assert result['accuracy'] < 0.5
 
     def test_map_precision_recall(self):
-        """Verifica precision y recall."""
+        """Verifies precision and recall."""
         gt = np.zeros((10, 10))
         gt[5, 5] = 1.0
         gt[5, 6] = 1.0
@@ -87,7 +87,7 @@ class TestErrorAnalysis:
         assert abs(result['recall'] - 0.5) < 0.01
 
     def test_map_iou(self):
-        """Verifica IoU calculation."""
+        """Verifies IoU calculation."""
         gt = np.zeros((10, 10))
         gt[0:5, 0:5] = 1.0  # 25 celdas
         
@@ -98,7 +98,7 @@ class TestErrorAnalysis:
         assert abs(result['iou'] - 1.0) < 0.01
 
     def test_landmark_error_perfect(self):
-        """Error de landmarks con posiciones exactas."""
+        """Landmark error with exact positions."""
         true_lm = np.array([[1.0, 2.0], [3.0, 4.0]])
         est_lm = np.array([[1.0, 2.0], [3.0, 4.0]])
         result = ErrorAnalysis.landmark_error(true_lm, est_lm)
@@ -106,7 +106,7 @@ class TestErrorAnalysis:
         assert result['num_matched'] == 2
 
     def test_landmark_error_offset(self):
-        """Error de landmarks con offset conocido."""
+        """Landmark error with known offset."""
         true_lm = np.array([[1.0, 1.0], [5.0, 5.0]])
         est_lm = np.array([[1.1, 1.1], [5.1, 5.1]])
         result = ErrorAnalysis.landmark_error(true_lm, est_lm)
@@ -114,21 +114,21 @@ class TestErrorAnalysis:
         assert abs(result['mean_error'] - expected_error) < 0.01
 
     def test_landmark_error_empty(self):
-        """Error con landmarks vacíos."""
+        """Error with empty landmarks."""
         true_lm = np.array([[1.0, 2.0]])
         est_lm = np.empty((0, 2))
         result = ErrorAnalysis.landmark_error(true_lm, est_lm)
         assert result['num_matched'] == 0
 
     def test_exploration_coverage(self):
-        """Verifica cálculo de cobertura."""
+        """Verifies coverage calculation."""
         mask = np.zeros((100, 100), dtype=bool)
-        mask[:50, :] = True  # 50% explorado
+        mask[:50, :] = True  # 50% explored
         result = ErrorAnalysis.exploration_coverage(mask)
         assert abs(result['coverage_ratio'] - 0.5) < 0.01
 
     def test_generate_report(self):
-        """Verifica que se genera un reporte válido."""
+        """Verifies that a valid report is generated."""
         traj = {'rmse': 0.1, 'mean': 0.08, 'max': 0.2, 'std': 0.03, 'errors': np.array([0.1])}
         orient = {'rmse': 0.05, 'mean': 0.04, 'max': 0.1, 'errors': np.array([0.05])}
         maps = {'accuracy': 0.95, 'precision': 0.8, 'recall': 0.7, 'f1_score': 0.75, 'iou': 0.6,
@@ -143,7 +143,7 @@ class TestErrorAnalysis:
 
 
 def run_tests():
-    """Ejecuta todos los tests."""
+    """Runs all tests."""
     test = TestErrorAnalysis()
     methods = [m for m in dir(test) if m.startswith('test_')]
     passed = 0
@@ -165,4 +165,4 @@ def run_tests():
 if __name__ == '__main__':
     print("🧪 Tests: Error Analysis")
     p, f = run_tests()
-    print(f"\n   Resultado: {p} passed, {f} failed")
+    print(f"\n   Result: {p} passed, {f} failed")

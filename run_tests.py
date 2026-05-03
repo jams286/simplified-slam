@@ -1,5 +1,5 @@
 """
-Runner de tests para todos los módulos.
+Test runner for all modules.
 """
 
 import sys
@@ -15,7 +15,7 @@ from tests.test_error_analysis import run_tests as run_error_tests
 
 def main():
     print("=" * 60)
-    print("   🧪 SLAM SIMPLIFICADO - Suite de Tests")
+    print("   🧪 SIMPLIFIED SLAM - Test Suite")
     print("=" * 60)
     
     total_passed = 0
@@ -40,13 +40,13 @@ def main():
             total_failed += f
             results.append((name, p, f))
         except Exception as e:
-            print(f"  ❌ Error ejecutando suite: {e}")
+            print(f"  ❌ Error running suite: {e}")
             total_failed += 1
             results.append((name, 0, 1))
     
-    # Resumen
+    # Summary
     print(f"\n{'=' * 60}")
-    print(f"   📊 RESUMEN DE RESULTADOS")
+    print(f"   📊 RESULTS SUMMARY")
     print(f"{'=' * 60}")
     print(f"\n   {'Suite':<20} {'Passed':<10} {'Failed':<10}")
     print(f"   {'─'*40}")
@@ -56,7 +56,7 @@ def main():
     
     print(f"\n   {'─'*40}")
     print(f"   Total: {total_passed} passed, {total_failed} failed")
-    print(f"   Tasa de éxito: {total_passed/(total_passed+total_failed)*100:.1f}%")
+    print(f"   Success rate: {total_passed/(total_passed+total_failed)*100:.1f}%")
     print(f"{'=' * 60}")
     
     return 0 if total_failed == 0 else 1

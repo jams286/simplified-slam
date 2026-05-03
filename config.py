@@ -1,52 +1,52 @@
 """
-Configuración global del sistema SLAM simplificado.
-Parámetros del entorno, robot, sensores y algoritmos.
+Global configuration for the simplified SLAM system.
+Parameters for environment, robot, sensors, and algorithms.
 """
 
 import numpy as np
 
-# === Entorno ===
-ENV_WIDTH = 20.0          # metros
-ENV_HEIGHT = 20.0         # metros
-WALL_THICKNESS = 0.1      # metros
+# === Environment ===
+ENV_WIDTH = 20.0          # meters
+ENV_HEIGHT = 20.0         # meters
+WALL_THICKNESS = 0.1      # meters
 
 # === Robot ===
-ROBOT_RADIUS = 0.3        # metros
+ROBOT_RADIUS = 0.3        # meters
 ROBOT_MAX_SPEED = 1.0     # m/s
-ROBOT_MAX_OMEGA = np.pi/2 # rad/s (velocidad angular máxima)
-DT = 0.1                  # paso de tiempo (segundos)
+ROBOT_MAX_OMEGA = np.pi/2 # rad/s (maximum angular velocity)
+DT = 0.1                  # time step (seconds)
 
-# === Ruido de movimiento ===
-MOTION_NOISE_V = 0.02     # desviación estándar velocidad lineal (m/s)
-MOTION_NOISE_W = 0.01     # desviación estándar velocidad angular (rad/s)
+# === Motion Noise ===
+MOTION_NOISE_V = 0.02     # linear velocity standard deviation (m/s)
+MOTION_NOISE_W = 0.01     # angular velocity standard deviation (rad/s)
 
 # === LiDAR ===
-LIDAR_MAX_RANGE = 8.0     # metros
-LIDAR_MIN_RANGE = 0.1     # metros
-LIDAR_NUM_BEAMS = 180     # número de rayos
-LIDAR_FOV = 2 * np.pi     # campo de visión (360°)
-LIDAR_NOISE_STD = 0.05    # desviación estándar del ruido (metros)
-LIDAR_MISS_PROB = 0.02    # probabilidad de lectura perdida
+LIDAR_MAX_RANGE = 8.0     # meters
+LIDAR_MIN_RANGE = 0.1     # meters
+LIDAR_NUM_BEAMS = 180     # number of beams
+LIDAR_FOV = 2 * np.pi     # field of view (360°)
+LIDAR_NOISE_STD = 0.05    # noise standard deviation (meters)
+LIDAR_MISS_PROB = 0.02    # missed reading probability
 
 # === EKF-SLAM ===
-EKF_INITIAL_LANDMARK_COV = 1.0   # covarianza inicial de landmarks
-EKF_RANGE_NOISE = 0.1            # ruido en medición de rango
-EKF_BEARING_NOISE = 0.05         # ruido en medición de ángulo
-EKF_ASSOCIATION_THRESHOLD = 1.5  # umbral Mahalanobis para asociación
+EKF_INITIAL_LANDMARK_COV = 1.0   # initial landmark covariance
+EKF_RANGE_NOISE = 0.1            # range measurement noise
+EKF_BEARING_NOISE = 0.05         # bearing measurement noise
+EKF_ASSOCIATION_THRESHOLD = 1.5  # Mahalanobis threshold for association
 
-# === Mapa de Ocupación ===
-GRID_RESOLUTION = 0.1     # metros por celda
-GRID_LOG_ODD_FREE = -0.4  # log-odds para espacio libre
-GRID_LOG_ODD_OCC = 0.9    # log-odds para celda ocupada
+# === Occupancy Grid ===
+GRID_RESOLUTION = 0.1     # meters per cell
+GRID_LOG_ODD_FREE = -0.4  # log-odds for free space
+GRID_LOG_ODD_OCC = 0.9    # log-odds for occupied cell
 GRID_LOG_ODD_PRIOR = 0.0  # log-odds prior
-GRID_LOG_ODD_MAX = 5.0    # saturación máxima
-GRID_LOG_ODD_MIN = -5.0   # saturación mínima
+GRID_LOG_ODD_MAX = 5.0    # maximum saturation
+GRID_LOG_ODD_MIN = -5.0   # minimum saturation
 
-# === Visualización ===
-VIS_FPS = 10              # cuadros por segundo
-VIS_TRAIL_LENGTH = 200    # longitud del rastro del robot
-VIS_FIGSIZE = (14, 6)     # tamaño de la figura
+# === Visualization ===
+VIS_FPS = 10              # frames per second
+VIS_TRAIL_LENGTH = 200    # robot trail length
+VIS_FIGSIZE = (14, 6)     # figure size
 
-# === Simulación ===
-SIM_STEPS = 500           # pasos totales de simulación
-SIM_SEED = 42             # semilla para reproducibilidad
+# === Simulation ===
+SIM_STEPS = 500           # total simulation steps
+SIM_SEED = 42             # seed for reproducibility
