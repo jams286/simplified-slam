@@ -6,6 +6,7 @@ mapa de ocupación, visualización y análisis de error.
 
 import numpy as np
 import sys
+import os
 import argparse
 
 from config import (
@@ -173,11 +174,19 @@ def run_slam(num_steps: int = SIM_STEPS, seed: int = SIM_SEED,
     print(report)
     
     # === 10. Visualización ===
+    if save_animation:
+        os.makedirs(os.path.dirname(save_animation), exist_ok=True)
+
     if visualize:
         print("\n🎨 Generando visualización final...")
+        save_comparison = None
+        if save_animation:
+            results_dir = os.path.dirname(save_animation) or 'results'
+            os.makedirs(results_dir, exist_ok=True)
+            save_comparison = os.path.join(results_dir, 'comparison.png')
         vis.plot_final_comparison(
             robot.true_path, ekf.estimated_path, gt_map,
-            save_path='results/comparison.png' if save_animation else None
+            save_path=save_comparison
         )
     
     if animate:
