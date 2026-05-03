@@ -1,17 +1,17 @@
-# 🤖 SLAM Simplificado — EKF-SLAM con LiDAR 2D
+# 🤖 SLAM Simplificado — EKF-SLAM with 2D LiDAR
 
 ![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat&logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat)
 ![NumPy](https://img.shields.io/badge/NumPy-2.0+-013243?style=flat&logo=numpy&logoColor=white)
 ![Matplotlib](https://img.shields.io/badge/Matplotlib-3.7+-11557c?style=flat&logo=plotly&logoColor=white)
 
-- **EKF-SLAM** (Extended Kalman Filter) implementado desde cero sin dependencias de ROS
-- Simulador de entorno 2D con paredes, obstáculos rectangulares y pasillos
-- Generador de escaneos **LiDAR 2D** con ruido gaussiano realista y lecturas perdidas
-- **Mapa de grilla de ocupación** actualizado en tiempo real con modelo log-odds
-- Visualización animada dual: entorno real vs mapa estimado
-- Análisis cuantitativo de error (ATE, precisión de mapa, IoU, error de landmarks)
-- **70 tests** con **100% pass rate**
+- **EKF-SLAM** (Extended Kalman Filter) implemented from scratch without ROS dependencies
+- 2D environment simulator with walls, rectangular obstacles, and corridors
+- **2D LiDAR** scan generator with realistic Gaussian noise and missed readings
+- **Occupancy grid map** updated in real-time using log-odds model
+- Dual-panel animated visualization: real environment vs estimated map
+- Quantitative error analysis (ATE, map precision, IoU, landmark error)
+- **70 tests** with **100% pass rate**
 
 > Built as a portfolio project to demonstrate understanding of probabilistic robotics, state estimation, and simultaneous localization and mapping from first principles.
 
@@ -19,7 +19,7 @@
 
 ## 📐 Mathematical Foundation
 
-### Modelo de Movimiento (Velocity Motion Model)
+### Motion Model (Velocity Motion Model)
 
 ```
 x' = x + v·cos(θ)·dt
@@ -27,68 +27,68 @@ y' = y + v·sin(θ)·dt
 θ' = θ + ω·dt
 ```
 
-| Símbolo | Descripción | Unidad |
-|---------|-------------|--------|
-| `x, y` | Posición del robot | m |
-| `θ` | Orientación | rad |
-| `v` | Velocidad lineal | m/s |
-| `ω` | Velocidad angular | rad/s |
-| `dt` | Paso de tiempo | s |
+| Symbol | Description | Unit |
+|--------|-------------|------|
+| `x, y` | Robot position | m |
+| `θ` | Orientation | rad |
+| `v` | Linear velocity | m/s |
+| `ω` | Angular velocity | rad/s |
+| `dt` | Time step | s |
 
-### EKF-SLAM — Estado Aumentado
+### EKF-SLAM — Augmented State
 
-El estado contiene la pose del robot y las posiciones de todos los landmarks observados:
+The state vector contains the robot pose and all observed landmark positions:
 
 ```
 μ = [x, y, θ, lx₁, ly₁, lx₂, ly₂, ..., lxₙ, lyₙ]
 Σ ∈ ℝ^(3+2N)×(3+2N)
 ```
 
-**Predicción:**
+**Prediction:**
 ```
 μ̄ = g(μₜ₋₁, uₜ)
 Σ̄ = Gₜ·Σₜ₋₁·Gₜᵀ + Rₜ
 ```
 
-**Corrección (por cada observación zᵢ = [r, φ]):**
+**Correction (for each observation zᵢ = [r, φ]):**
 ```
-Medición esperada:   ẑ = h(μ̄) = [√((lx-x)² + (ly-y)²), atan2(ly-y, lx-x) - θ]
-Innovación:          ν = z - ẑ
-Ganancia de Kalman:  K = Σ̄·Hᵀ·(H·Σ̄·Hᵀ + Q)⁻¹
-Actualización:       μ = μ̄ + K·ν
-                     Σ = (I - K·H)·Σ̄
+Expected measurement:  ẑ = h(μ̄) = [√((lx-x)² + (ly-y)²), atan2(ly-y, lx-x) - θ]
+Innovation:            ν = z - ẑ
+Kalman Gain:           K = Σ̄·Hᵀ·(H·Σ̄·Hᵀ + Q)⁻¹
+Update:                μ = μ̄ + K·ν
+                       Σ = (I - K·H)·Σ̄
 ```
 
-| Símbolo | Descripción |
-|---------|-------------|
-| `μ` | Vector de estado (pose + landmarks) |
-| `Σ` | Matriz de covarianza conjunta |
-| `G` | Jacobiano del modelo de movimiento |
-| `H` | Jacobiano del modelo de observación |
-| `K` | Ganancia de Kalman |
-| `R` | Covarianza del ruido de proceso |
-| `Q` | Covarianza del ruido de medición |
-| `ν` | Innovación (residuo) |
+| Symbol | Description |
+|--------|-------------|
+| `μ` | State vector (pose + landmarks) |
+| `Σ` | Joint covariance matrix |
+| `G` | Motion model Jacobian |
+| `H` | Observation model Jacobian |
+| `K` | Kalman Gain |
+| `R` | Process noise covariance |
+| `Q` | Measurement noise covariance |
+| `ν` | Innovation (residual) |
 
-### Mapa de Ocupación — Log-Odds
+### Occupancy Grid — Log-Odds
 
 ```
 L(m|z₁:ₜ) = L(m|z₁:ₜ₋₁) + L(m|zₜ) - L₀
 
-donde L = log(p / (1-p))
+where L = log(p / (1-p))
 ```
 
-| Parámetro | Valor | Descripción |
+| Parameter | Value | Description |
 |-----------|-------|-------------|
-| `L_free` | -0.4 | Log-odds para espacio libre |
-| `L_occ` | 0.9 | Log-odds para celda ocupada |
-| `L₀` | 0.0 | Prior (máxima incertidumbre) |
-| `L_max` | 5.0 | Saturación máxima |
-| `L_min` | -5.0 | Saturación mínima |
+| `L_free` | -0.4 | Log-odds for free space |
+| `L_occ` | 0.9 | Log-odds for occupied cell |
+| `L₀` | 0.0 | Prior (maximum uncertainty) |
+| `L_max` | 5.0 | Maximum saturation |
+| `L_min` | -5.0 | Minimum saturation |
 
-### Algoritmo de Ray-Casting (Bresenham)
+### Ray-Casting Algorithm (Bresenham)
 
-Los escaneos LiDAR se proyectan al mapa usando el algoritmo de Bresenham para trazar cada rayo eficientemente en la grilla discreta, marcando celdas como libres (traversadas) u ocupadas (endpoint).
+LiDAR scans are projected onto the map using Bresenham's line algorithm to efficiently trace each ray in the discrete grid, marking cells as free (traversed) or occupied (endpoint).
 
 ---
 
@@ -96,41 +96,41 @@ Los escaneos LiDAR se proyectan al mapa usando el algoritmo de Bresenham para tr
 
 ```
 slam_simplificado/
-├── main.py                     # Punto de entrada — orquesta la simulación completa
-├── config.py                   # Parámetros globales configurables
-├── run_tests.py                # Runner de la suite de tests completa
-├── requirements.txt            # Dependencias: numpy, matplotlib
+├── main.py                     # Entry point — orchestrates the full simulation
+├── config.py                   # Global configurable parameters
+├── run_tests.py                # Full test suite runner
+├── requirements.txt            # Dependencies: numpy, matplotlib
 ├── LICENSE                     # MIT License
-├── .gitignore                  # Archivos excluidos de git
+├── .gitignore                  # Files excluded from git
 ├── src/
 │   ├── __init__.py
-│   ├── environment.py          # Simulador de entorno 2D (paredes, obstáculos, ray-casting)
-│   ├── robot.py                # Modelo cinemático del robot diferencial
-│   ├── lidar.py                # Sensor LiDAR 2D simulado con ruido gaussiano
-│   ├── ekf_slam.py             # Algoritmo EKF-SLAM (predict-update con landmarks)
-│   ├── occupancy_grid.py       # Mapa de grilla de ocupación (log-odds + Bresenham)
-│   ├── visualization.py        # Visualización animada dual panel
-│   └── error_analysis.py       # Métricas de error (ATE, F1, IoU, landmarks)
+│   ├── environment.py          # 2D environment simulator (walls, obstacles, ray-casting)
+│   ├── robot.py                # Differential drive robot kinematic model
+│   ├── lidar.py                # Simulated 2D LiDAR sensor with Gaussian noise
+│   ├── ekf_slam.py             # EKF-SLAM algorithm (predict-update with landmarks)
+│   ├── occupancy_grid.py       # Occupancy grid map (log-odds + Bresenham)
+│   ├── visualization.py        # Dual-panel animated visualization
+│   └── error_analysis.py       # Error metrics (ATE, F1, IoU, landmarks)
 └── tests/
     ├── __init__.py
-    ├── test_environment.py     # 14 tests — ray-casting, colisiones, ground truth
-    ├── test_lidar.py           # 13 tests — escaneos, ruido, landmarks
-    ├── test_ekf_slam.py        # 14 tests — predicción, corrección, asociación de datos
-    ├── test_occupancy_grid.py  # 14 tests — log-odds, Bresenham, actualización
-    └── test_error_analysis.py  # 15 tests — ATE, métricas de mapa, cobertura
+    ├── test_environment.py     # 14 tests — ray-casting, collisions, ground truth
+    ├── test_lidar.py           # 13 tests — scans, noise, landmarks
+    ├── test_ekf_slam.py        # 14 tests — prediction, correction, data association
+    ├── test_occupancy_grid.py  # 14 tests — log-odds, Bresenham, updates
+    └── test_error_analysis.py  # 15 tests — ATE, map metrics, coverage
 ```
 
 ---
 
 ## 🚀 Quick Start
 
-1. **Clonar el repositorio**
+1. **Clone the repository**
    ```bash
    git clone https://github.com/jams286/slam_simplificado.git
    cd slam_simplificado
    ```
 
-2. **Crear entorno virtual**
+2. **Create virtual environment**
    ```bash
    python -m venv venv
    # Windows
@@ -139,17 +139,17 @@ slam_simplificado/
    source venv/bin/activate
    ```
 
-3. **Instalar dependencias**
+3. **Install dependencies**
    ```bash
    pip install -r requirements.txt
    ```
 
-4. **Ejecutar la simulación**
+4. **Run the simulation**
    ```bash
    python main.py
    ```
 
-5. **Ejecutar tests**
+5. **Run tests**
    ```bash
    python run_tests.py
    ```
@@ -158,43 +158,43 @@ slam_simplificado/
 
 ## 🎮 Usage
 
-### Línea de Comandos
+### Command Line
 
 ```bash
-# Simulación por defecto (500 pasos, con animación)
+# Default simulation (500 steps, with animation)
 python main.py
 
-# Simulación larga sin animación
+# Long simulation without animation
 python main.py --steps 1000 --no-animate
 
-# Solo métricas (sin visualización)
+# Metrics only (no visualization)
 python main.py --no-visualize
 
-# Guardar animación como GIF
+# Save animation as GIF
 python main.py --save-gif results/slam_demo.gif
 
-# Cambiar semilla aleatoria
+# Change random seed
 python main.py --seed 123
 ```
 
-| Parámetro | Default | Descripción |
+| Parameter | Default | Description |
 |-----------|---------|-------------|
-| `--steps` | 500 | Número de pasos de simulación |
-| `--seed` | 42 | Semilla para reproducibilidad |
-| `--no-animate` | False | Desactivar animación en tiempo real |
-| `--no-visualize` | False | Desactivar toda visualización |
-| `--save-gif` | None | Ruta para guardar animación GIF |
+| `--steps` | 500 | Number of simulation steps |
+| `--seed` | 42 | Random seed for reproducibility |
+| `--no-animate` | False | Disable real-time animation |
+| `--no-visualize` | False | Disable all visualization |
+| `--save-gif` | None | Path to save animation GIF |
 
-### Parámetros Configurables (config.py)
+### Configurable Parameters (config.py)
 
-| Parámetro | Valor | Descripción |
+| Parameter | Value | Description |
 |-----------|-------|-------------|
-| `ENV_WIDTH/HEIGHT` | 20.0 m | Dimensiones del entorno |
-| `LIDAR_NUM_BEAMS` | 180 | Rayos del LiDAR |
-| `LIDAR_MAX_RANGE` | 8.0 m | Rango máximo del sensor |
-| `LIDAR_NOISE_STD` | 0.05 m | Ruido gaussiano σ |
-| `GRID_RESOLUTION` | 0.1 m | Resolución del mapa de ocupación |
-| `EKF_ASSOCIATION_THRESHOLD` | 1.5 | Umbral para asociación de datos |
+| `ENV_WIDTH/HEIGHT` | 20.0 m | Environment dimensions |
+| `LIDAR_NUM_BEAMS` | 180 | LiDAR ray count |
+| `LIDAR_MAX_RANGE` | 8.0 m | Maximum sensor range |
+| `LIDAR_NOISE_STD` | 0.05 m | Gaussian noise σ |
+| `GRID_RESOLUTION` | 0.1 m | Occupancy map resolution |
+| `EKF_ASSOCIATION_THRESHOLD` | 1.5 | Data association threshold |
 
 ---
 
@@ -202,49 +202,49 @@ python main.py --seed 123
 
 **70 tests passed — 100% pass rate**
 
-| Clase de Test | Tests | Cobertura |
-|---------------|-------|-----------|
-| `TestEnvironment` | 14 | Ray-casting, colisiones, paredes perimetrales, ground truth map |
-| `TestLiDAR` | 12 | Escaneos, ruido gaussiano, lecturas perdidas, extracción de landmarks |
-| `TestLiDARScan` | 1 | Conteo de mediciones válidas |
-| `TestEKFSLAM` | 14 | Predicción, corrección, asociación de datos, convergencia, covarianza |
-| `TestOccupancyGrid` | 14 | Log-odds, Bresenham, saturación, conversión coordenadas |
-| `TestErrorAnalysis` | 15 | ATE, orientación, precisión/recall/F1/IoU de mapa, landmarks, cobertura |
+| Test Class | Tests | Coverage |
+|------------|-------|----------|
+| `TestEnvironment` | 14 | Ray-casting, collisions, boundary walls, ground truth map |
+| `TestLiDAR` | 12 | Scans, Gaussian noise, missed readings, landmark extraction |
+| `TestLiDARScan` | 1 | Valid measurement count |
+| `TestEKFSLAM` | 14 | Prediction, correction, data association, convergence, covariance |
+| `TestOccupancyGrid` | 14 | Log-odds, Bresenham, saturation, coordinate conversion |
+| `TestErrorAnalysis` | 15 | ATE, orientation, precision/recall/F1/IoU, landmarks, coverage |
 
 ---
 
 ## 📊 Metrics / Results
 
-Resultados medidos con configuración por defecto (500 pasos, seed=42):
+Measured results with default configuration (500 steps, seed=42):
 
-| Métrica | Valor | Descripción |
-|---------|-------|-------------|
-| **ATE RMSE** | ~0.15 m | Error absoluto de trayectoria |
-| **Orientation RMSE** | ~0.08 rad (~4.6°) | Error de orientación |
-| **Map Accuracy** | >90% | Precisión del mapa de ocupación |
-| **Map F1-Score** | >0.6 | Balance precisión-recall del mapa |
-| **Exploration Coverage** | >40% | Porcentaje del mapa explorado |
-| **Landmark Match Rate** | >60% | Tasa de asociación correcta de landmarks |
+| Metric | Value | Description |
+|--------|-------|-------------|
+| **ATE RMSE** | ~0.15 m | Absolute Trajectory Error |
+| **Orientation RMSE** | ~0.08 rad (~4.6°) | Heading estimation error |
+| **Map Accuracy** | >90% | Occupancy grid accuracy |
+| **Map F1-Score** | >0.6 | Precision-recall balance |
+| **Exploration Coverage** | >40% | Percentage of map explored |
+| **Landmark Match Rate** | >60% | Correct landmark association rate |
 
-*Nota: Los valores exactos varían según la trayectoria de exploración y la semilla aleatoria.*
+*Note: Exact values vary depending on the exploration trajectory and random seed.*
 
 ---
 
 ## 🗺️ Roadmap
 
-- [x] Simulador de entorno 2D con obstáculos
-- [x] Generador de escaneos LiDAR con ruido gaussiano
-- [x] EKF-SLAM con landmarks puntuales
-- [x] Mapa de grilla de ocupación (log-odds)
-- [x] Visualización animada dual panel
-- [x] Análisis cuantitativo de error
-- [x] Suite de tests completa (70 tests)
-- [ ] Exploración autónoma con frontier-based exploration
-- [ ] Implementación alternativa con FastSLAM (Particle Filter)
+- [x] 2D environment simulator with obstacles
+- [x] LiDAR scan generator with Gaussian noise
+- [x] EKF-SLAM with point landmarks
+- [x] Occupancy grid map (log-odds)
+- [x] Dual-panel animated visualization
+- [x] Quantitative error analysis
+- [x] Full test suite (70 tests)
+- [ ] Autonomous exploration with frontier-based exploration
+- [ ] Alternative implementation with FastSLAM (Particle Filter)
 - [ ] Loop closure detection
-- [ ] Soporte para datos LiDAR reales (formato ROS bag)
-- [ ] Exportación de mapas a formato PGM/YAML
-- [ ] Interfaz web interactiva con controles en tiempo real
+- [ ] Support for real LiDAR data (ROS bag format)
+- [ ] Map export to PGM/YAML format
+- [ ] Interactive web interface with real-time controls
 
 ---
 
