@@ -96,17 +96,26 @@ LiDAR scans are projected onto the map using Bresenham's line algorithm to effic
 
 ```
 simplified-slam/
-├── main.py                     # Entry point — orchestrates the full simulation
+├── main.py                     # Simulation mode — full SLAM with simulated LiDAR
+├── main_real.py                # Real LiDAR mode — live SLAM with CSPC sensor
 ├── config.py                   # Global configurable parameters
 ├── run_tests.py                # Full test suite runner
-├── requirements.txt            # Dependencies: numpy, matplotlib
+├── requirements.txt            # Dependencies: numpy, matplotlib, pyserial
 ├── LICENSE                     # MIT License
 ├── .gitignore                  # Files excluded from git
+├── drivers/
+│   └── cspc_lidar/             # CSPC M1C1/M1CT LiDAR driver (serial protocol)
+│       ├── cspc_lidar.py       # Core driver — serial communication & packet parsing
+│       ├── visualizer.py       # Standalone polar/cartesian scan viewer
+│       ├── record_csv.py       # Record scans to CSV file
+│       └── merge_scans.py      # Merge multiple scan sessions
 ├── src/
 │   ├── __init__.py
 │   ├── environment.py          # 2D environment simulator (walls, obstacles, ray-casting)
 │   ├── robot.py                # Differential drive robot kinematic model
 │   ├── lidar.py                # Simulated 2D LiDAR sensor with Gaussian noise
+│   ├── real_lidar.py           # Real LiDAR adapter (CSPC → SLAM format)
+│   ├── scan_matching.py        # ICP scan matcher (motion estimation without odometry)
 │   ├── ekf_slam.py             # EKF-SLAM algorithm (predict-update with landmarks)
 │   ├── occupancy_grid.py       # Occupancy grid map (log-odds + Bresenham)
 │   ├── visualization.py        # Dual-panel animated visualization
@@ -144,12 +153,17 @@ simplified-slam/
    pip install -r requirements.txt
    ```
 
-4. **Run the simulation**
+4. **Run the simulation (no hardware needed)**
    ```bash
    python main.py
    ```
 
-5. **Run tests**
+5. **Run with real LiDAR (CSPC M1C1/M1CT)**
+   ```bash
+   python main_real.py --port COM3 --version 2
+   ```
+
+6. **Run tests**
    ```bash
    python run_tests.py
    ```
@@ -184,6 +198,40 @@ python main.py --seed 123
 | `--no-animate` | False | Disable real-time animation |
 | `--no-visualize` | False | Disable all visualization |
 | `--save-gif` | None | Path to save animation GIF |
+
+### Real LiDAR Mode
+
+```bash
+# Basic usage (plug in LiDAR, find port in Device Manager)
+python main_real.py --port COM3 --version 2
+
+# With custom baud rate and range
+python main_real.py --port COM3 --version 2 --baud 230400 --max-range 5.0
+
+# Smaller map for a single room
+python main_real.py --port COM3 --version 2 --grid-size 10
+
+# Linux
+python main_real.py --port /dev/ttyUSB0 --version 3
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `--port` | COM3 | Serial port |
+| `--version` | 2 | LiDAR model (1=M1C1_v1, 2=M1C1_v2, 3=Coin_Plus, 4=Coin_D2) |
+| `--baud` | auto | Baud rate (auto-detected from version) |
+| `--max-range` | 8.0 | Maximum range in meters |
+| `--min-range` | 0.10 | Minimum range in meters |
+| `--grid-size` | 20.0 | Map size in meters (square) |
+| `--grid-resolution` | 0.1 | Grid cell size in meters |
+| `--max-steps` | 0 | Max scans (0 = unlimited, Ctrl+C to stop) |
+
+**How it works (handheld mode):**
+1. The LiDAR spins and captures 360° scans
+2. ICP scan matching compares consecutive scans to estimate your movement
+3. EKF-SLAM fuses the motion estimate with landmark observations
+4. The occupancy grid builds the map in real-time
+5. Walk around the room — the map grows as you explore!
 
 ### Configurable Parameters (config.py)
 
@@ -242,7 +290,7 @@ Measured results with default configuration (500 steps, seed=42):
 - [ ] Autonomous exploration with frontier-based exploration
 - [ ] Alternative implementation with FastSLAM (Particle Filter)
 - [ ] Loop closure detection
-- [ ] Support for real LiDAR data (ROS bag format)
+- [x] Support for real CSPC LiDAR (M1C1 / M1CT) with scan matching
 - [ ] Map export to PGM/YAML format
 - [ ] Interactive web interface with real-time controls
 
