@@ -1,4 +1,4 @@
-# 🤖 SLAM Simplificado — EKF-SLAM with 2D LiDAR
+# 🤖 Simplified SLAM — EKF-SLAM with 2D LiDAR
 
 ![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat&logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat)
@@ -95,7 +95,7 @@ LiDAR scans are projected onto the map using Bresenham's line algorithm to effic
 ## 🗂️ Project Structure
 
 ```
-slam_simplificado/
+simplified-slam/
 ├── main.py                     # Entry point — orchestrates the full simulation
 ├── config.py                   # Global configurable parameters
 ├── run_tests.py                # Full test suite runner
@@ -126,8 +126,8 @@ slam_simplificado/
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/jams286/slam_simplificado.git
-   cd slam_simplificado
+   git clone https://github.com/jams286/simplified-slam.git
+   cd simplified-slam
    ```
 
 2. **Create virtual environment**
